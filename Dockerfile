@@ -1,9 +1,11 @@
 FROM node
-
+RUN npm install -g http-server
 WORKDIR /app/ui
 COPY package.json /app/ui
 
-RUN npm install
+RUN npm install --production
+COPY . /app/ui
+CMD ["npm", "run", "build"]
 
-EXPOSE 3000
-CMD ["npm", "start"]
+EXPOSE 80
+CMD [ "http-server", "dist" ]
