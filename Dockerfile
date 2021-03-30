@@ -5,7 +5,7 @@ COPY package.json /app/ui
 
 RUN npm install --production
 COPY . /app/ui
-CMD ["npm", "run", "build"]
+RUN npm run build:prod
 
 EXPOSE 80
 CMD [ "http-server", "dist" ]

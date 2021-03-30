@@ -1,6 +1,8 @@
 <template>
   <div class="dashboard-container">
-    <component :is="currentRole" />
+    <el-scrollbar>
+      <component :is="currentRole" />
+    </el-scrollbar>
   </div>
 </template>
 

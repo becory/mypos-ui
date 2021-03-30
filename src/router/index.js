@@ -98,7 +98,45 @@ export const asyncRoutes = [
         path: '',
         component: () => import('@/views/Customer/index'),
         name: 'Customer',
-        meta: { title: 'Customer', icon: 'user' }
+        meta: { title: '顧客', icon: 'user' }
+      }
+    ]
+  },
+  {
+    path: '/Menu',
+    component: Layout,
+    meta: { title: '菜單', icon: 'fas el-icon-fa-utensils' },
+    children: [
+      {
+        path: '',
+        component: () => import('@/views/Menu/index'),
+        name: 'Menu',
+        meta: { title: '菜單', icon: 'fas el-icon-fa-utensils' }
+      },
+      {
+        path: 'Status',
+        component: () => import('@/views/Menu/Status'),
+        name: 'MenuStatus',
+        meta: { title: '產品狀態', icon: 'fas el-icon-fa-utensils' }
+      }
+    ]
+  },
+  {
+    path: '/Stock',
+    component: Layout,
+    meta: { title: '庫存', icon: 'fas el-icon-fa-boxes' },
+    children: [
+      {
+        path: '',
+        component: () => import('@/views/Stock/index'),
+        name: 'Stock',
+        meta: { title: '庫存' }
+      },
+      {
+        path: 'Unit',
+        component: () => import('@/views/Stock/Unit'),
+        name: 'Unit',
+        meta: { title: '單位設定' }
       }
     ]
   },
