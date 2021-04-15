@@ -1,15 +1,24 @@
 <template>
   <div>
     <el-row>
-      <el-col :md="12">
-        <el-button type="primary" icon="fas el-icon-fa-plus" @click="onCreate">新增</el-button>
+      <el-col :md="20">
+        <el-button
+          v-if="!tableOptions['disableCreate']"
+          type="primary"
+          icon="fas el-icon-fa-plus"
+          @click="onCreate"
+        >
+          新增
+        </el-button>
+        <el-input v-model="search" prefix-icon="fas el-icon-fa-search" style="width:100px;" />
       </el-col>
-      <el-col :md="12" class="align-right">
+      <el-col :md="4" class="align-right">
         <el-button type="primary" icon="fas el-icon-fa-sync-alt" @click="onRefresh" />
       </el-col>
     </el-row>
     <el-table
       :key="reload"
+      v-loading="loading"
       :data="data['result']"
       class="table"
       :highlight-current-row="tableOptions['isCanSelection']"
@@ -21,10 +30,20 @@
         :prop="column.field"
         :label="column.label"
         :fixed="column.fixed"
-      />
-      <el-table-column label="操作" fixed="right" align="right">
+      >
         <template slot-scope="scope">
-          <el-button type="info" size="small" icon="fas el-icon-fa-edit" @click="onEdit(scope.row)" />
+          {{ formatRow(scope.row, column.field) }}
+        </template>
+      </el-table-column>
+      <el-table-column v-if="!tableOptions['disableOperation']" label="操作" fixed="right" align="right">
+        <template slot-scope="scope">
+          <el-button
+            v-if="!tableOptions['disableEdit']"
+            type="info"
+            size="small"
+            icon="fas el-icon-fa-edit"
+            @click="onEdit(scope.row)"
+          />
           <el-button
             v-if="tableOptions['isCanUpload']"
             type="success"
@@ -33,6 +52,7 @@
             @click="onUpload(scope.row)"
           />
           <el-button
+            v-if="!tableOptions['disableDelete']"
             type="danger"
             size="small"
             icon="fas el-icon-fa-trash-alt"
@@ -43,6 +63,7 @@
     </el-table>
     <el-pagination
       ref="pager"
+      v-loading="loading"
       :current-page="page"
       :page-sizes="[1, 2, 5, 10]"
       :page-size="pageSize"
@@ -51,8 +72,12 @@
       @size-change="handlePageSizeChange"
       @current-change="handlePageCurrentChange"
     />
-    <el-dialog :visible.sync="createDialog" :title="mode">
-      {{ formBody }}
+    <el-dialog
+      v-if="!tableOptions['disableCreate']||!tableOptions['disableEdit']"
+      :visible.sync="createDialog"
+      :append-to-body="true"
+      :title="mode"
+    >
       <el-form ref="form" :model="formBody" :rules="rules">
         <template v-for="(input,idx) in form">
           <!--          <template v-if="Object.keys(targetObject).indexOf(input['field'])<0">-->
@@ -61,6 +86,7 @@
               :is="input['inputType']"
               v-model="formBody[input.field]"
               v-bind="input.options"
+              :dataset="input.dataset"
             >
               <template v-if="input['inputType']==='el-select'">
                 <el-option
@@ -93,12 +119,19 @@
         </el-form-item>
       </el-form>
     </el-dialog>
-    <el-dialog :visible.sync="uploadModal" title="上傳">
+    <el-dialog
+      v-if="tableOptions['isCanUpload']&&!tableOptions['disableOperation']"
+      :visible.sync="uploadModal"
+      :append-to-body="true"
+      title="上傳"
+    >
+      <h1>{{ uploadName }}</h1>
       <el-form>
         <el-form-item label="上傳">
           <el-upload
             drag
             action=""
+            :show-file-list="false"
             :http-request="onUploadFile"
           />
         </el-form-item>
@@ -109,14 +142,16 @@
 
 <script>
 import { tip } from '@/utils/notify'
-import MaterialField from '@/components/Fields/MaterialField'
-import { serverBackend } from '@/api/api'
+import ItemValueField from '@/components/Fields/ItemValueField'
+import OrderDetailField from '@/components/Fields/OrderDetailField'
+import { authRequest } from '@/api/api'
 import { notify } from '@/utils/notify'
 
 export default {
   name: 'Index',
   components: {
-    MaterialField
+    ItemValueField,
+    OrderDetailField
   },
   props: {
     data: {
@@ -158,6 +193,10 @@ export default {
     name: {
       type: String,
       default: null
+    },
+    loading: {
+      type: Boolean,
+      default: false
     }
   },
   data() {
@@ -170,7 +209,9 @@ export default {
       editItem: {},
       editing: false,
       reload: Math.random() * 984568746,
-      uploadModal: false
+      uploadModal: false,
+      uploadName: '',
+      search: ''
     }
   },
   computed: {
@@ -192,6 +233,9 @@ export default {
           this.reload = this.reload + 1
         })
       }
+    },
+    search(val) {
+      this.$emit('search', val)
     }
   },
   mounted() {
@@ -240,16 +284,17 @@ export default {
     onUpload(row) {
       this.uploadModal = true
       this.editID = row.id
+      this.uploadName = row.name
     },
     onUploadFile(request) {
       const form = new FormData()
       form.append('image', request.file)
-      const instance = serverBackend
-      instance.put(this.name + this.editID + '/Upload/', form, { headers: { 'Content-Disposition': 'attachment; filename=' + request.file.name }
-      })
+      const instance = authRequest
+      instance.put(this.name + this.editID + '/Upload/', form)
         .then((res) => {
           this.$emit('refresh')
           notify('success', '上傳成功', res.data)
+          this.uploadModal = false
         })
     },
     onDelete(row) {
@@ -302,6 +347,11 @@ export default {
       this.$nextTick(() => {
         this.$emit('page-change', [this.target, val])
       })
+    },
+    formatRow(row, field) {
+      const split = field.split('.')
+      const result = split.reduce((total, current) => (total[current]), row)
+      return result
     }
   }
 }

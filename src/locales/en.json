@@ -1,0 +1,27 @@
+{
+  "DASHBOARD": {
+    "NAME": "Dashboard"
+  },
+  "ORDER": {
+    "COUNT": "{0} item(s),{1} serving(s)",
+    "NAME": "Order",
+    "id": "ID",
+    "status": "Status",
+    "customer": "Customer",
+    "checkOut": "Checkout",
+    "orderID": "Order No.",
+    "desk": "Desk No.",
+    "orderFrom": "Source",
+    "orderDetails": "Order Detail",
+    "Customer": "Customer",
+    "Store": "Store",
+    "FoodPanda": "FoodPanda",
+    "UberEats": "UberEats",
+    "menuItem": "Item",
+    "transactionItem": "Transaction Item",
+    "transactionCost": "Transaction Cost",
+    "cook": "cook",
+    "count": "count",
+    "remark": "remark"
+  }
+}

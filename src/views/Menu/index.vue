@@ -3,17 +3,20 @@
     <splitpanes ref="mainSplit">
       <pane :size="splitSize[0]">
         <div class="split-container">
-          <h2>Menu</h2>
+          <h2>菜單分類</h2>
           <TableView
             ref="main"
             :data="data"
             :column-options="columnOptions[0]"
             :form="formBody[0]"
+            :rules="rules[0]"
             class="table"
             :table-options="{isCanSelection:true}"
             :page="page[0]"
             :page-size="pageSize[0]"
             :target="0"
+            :loading="loading[0]"
+            @search="getDataset"
             @refresh="getDataset"
             @delete="deleteDataset"
             @create="createDataset"
@@ -26,7 +29,7 @@
       </pane>
       <pane :size="splitSize[1]">
         <div v-if="selectRow&&Object.keys(selectRow).length>0" class="split-container">
-          <h2>{{ selectRow.name }} 的點餐記錄</h2>
+          <h2>{{ selectRow.name }} 菜單內容</h2>
           <TableView
             ref="sub"
             :data="subData"
@@ -38,8 +41,10 @@
             :page="page[1]"
             :page-size="pageSize[1]"
             :rules="rules[1]"
+            :loading="loading[1]"
             :target="1"
             :target-object="{menu: selectRow}"
+            @search="getSubDataset(selectRow.id,$event)"
             @refresh="getSubDataset(selectRow.id)"
             @delete="deleteSubDataset"
             @create="createSubDataset"
@@ -58,11 +63,10 @@ import {
   deleteMenu,
   deleteMenuItem,
   getMenuStatusList,
-  getMenuItemForm,
   getMenuItemList,
   getMenuList,
   postMenu, postMenuItem,
-  putMenu, putMenuItem
+  putMenu, putMenuItem, getLabelList
 } from '@/api/api'
 import { Splitpanes, Pane } from 'splitpanes'
 import TableView from '@/components/TableView'
@@ -73,8 +77,9 @@ export default {
   components: { Splitpanes, Pane, TableView },
   data() {
     return {
+      loading: [false, false],
       page: [1, 1],
-      pageSize: [1, 1],
+      pageSize: [10, 10],
       splitSize: [50, 50],
       data: [],
       selectRow: {},
@@ -82,34 +87,6 @@ export default {
     }
   },
   computed: {
-    formBody() {
-      return [
-        [{ 'label': '分類名稱', 'field': 'name', 'type': 'text', 'inputType': 'el-input' },
-          {
-            'label': '顧客操作',
-            'field': 'customerAction',
-            'type': 'boolean',
-            'inputType': 'el-radio-group',
-            'dataset': [{ id: true, name: '是' }, { id: false, name: '否' }]
-          },
-          {
-            'label': '顯示',
-            'field': 'visible',
-            'type': 'boolean',
-            'inputType': 'el-radio-group',
-            'dataset': [{ id: true, name: '是' }, { id: false, name: '否' }]
-          }
-        ],
-        [{ 'label': '餐點名稱', 'field': 'name', 'type': 'text', 'inputType': 'el-input' },
-          { 'label': '目錄分類', 'field': 'menu', 'type': 'text', 'inputType': 'el-select', dataset: this.getMenuSelection },
-          { 'label': '價格', 'field': 'price', 'type': 'decimal', 'inputType': 'el-input-number' },
-          { 'label': '描述', 'field': 'description', 'type': 'text', 'inputType': 'el-input' },
-          { 'label': '上架狀態', 'field': 'status', 'type': 'text', 'inputType': 'el-select', dataset: this.getMenuStatusSelection },
-          { 'label': '食譜', 'field': 'recipes', 'type': 'select', 'inputType': 'MaterialField' },
-          { 'label': '套餐內容', 'field': 'menuSet', 'type': 'select', 'inputType': 'el-select', dataset: this.getMenuItemSelection, options: { multiple: true, filterable: true }}]
-      ]
-    },
-    // , dataset: this.getMaterialSelection
     columnOptions() {
       return [
         [{ 'label': 'ID', 'field': 'id' },
@@ -119,7 +96,6 @@ export default {
         ],
         [{ 'label': 'ID', 'field': 'id' },
           { 'label': '餐點名稱', 'field': 'name' },
-          { 'label': '目錄分類', 'field': 'menu' },
           { 'label': 'image', 'field': 'image' },
           { 'label': '價格', 'field': 'price' },
           { 'label': '描述', 'field': 'description' },
@@ -128,20 +104,79 @@ export default {
       ]
     },
     rules() {
-      return [[],
-        { name: [{ required: true, message: '必填欄位', trigger: 'blur' }],
+      return [
+        {
+          name: [{ required: true, message: '必填欄位', trigger: 'blur' }]
+          // customerAction: [{ required: true, message: '必填欄位', trigger: 'blur' }],
+          // visible: [{ required: true, message: '必填欄位', trigger: 'blur' }]
+        },
+        {
+          name: [{ required: true, message: '必填欄位', trigger: 'blur' }],
           menu: [{ required: true, message: '必填欄位', trigger: 'blur' }],
           price: [{ required: true, message: '必填欄位', trigger: 'blur' }],
           description: [{ required: true, message: '必填欄位', trigger: 'blur' }],
-          status: [{ required: true, message: '必填欄位', trigger: 'blur' }] }]
+          status: [{ required: true, message: '必填欄位', trigger: 'blur' }]
+        }]
+    },
+    formBody() {
+      return [
+        [{ 'label': '分類名稱', 'field': 'name', 'type': 'text', 'inputType': 'el-input' },
+          {
+            'label': '顧客操作',
+            'field': 'customerAction',
+            'type': 'boolean',
+            'inputType': 'el-switch'
+            // 'dataset': [{ value: true, label: '是' }, { value: false, label: '否' }]
+          },
+          {
+            'label': '顯示',
+            'field': 'visible',
+            'type': 'boolean',
+            'inputType': 'el-switch'
+            // 'dataset': [{ value: true, label: '是' }, { value: false, label: '否' }]
+          }
+        ],
+        [{ 'label': '餐點名稱', 'field': 'name', 'type': 'text', 'inputType': 'el-input' },
+          { 'label': '目錄分類', 'field': 'menu', 'type': 'text', 'inputType': 'el-select', dataset: this.getMenuSelection },
+          { 'label': '價格', 'field': 'price', 'type': 'decimal', 'inputType': 'el-input-number' },
+          { 'label': '描述', 'field': 'description', 'type': 'text', 'inputType': 'el-input' },
+          {
+            'label': '上架狀態',
+            'field': 'status',
+            'type': 'text',
+            'inputType': 'el-select',
+            dataset: this.getMenuStatusSelection
+          },
+          {
+            'label': '食譜',
+            'field': 'recipes',
+            'type': 'select',
+            'inputType': 'ItemValueField',
+            options: { options: { master: 'label', child: 'material', append: 'unit', combineField: 'materialValue', value: 'count' }},
+            dataset: this.getMaterialSelection
+          },
+          {
+            'label': '套餐內容',
+            'field': 'menuSet',
+            'type': 'select',
+            'inputType': 'el-select',
+            dataset: this.getMenuItemSelection,
+            options: { multiple: true, filterable: true }
+          }]
+      ]
     }
   },
   mounted() {
     this.getDataset()
   },
   methods: {
-    getDataset() {
-      getMenuList('')
+    getDataset(value) {
+      this.$set(this.loading, 0, true)
+      let params = '?page=' + this.page[0] + '&page_size=' + this.pageSize[0]
+      if (value) {
+        params += '&search=' + value
+      }
+      getMenuList(params)
         .then((res) => {
           this.data = res.data
           this.$refs['main'].createDialog = false
@@ -149,7 +184,20 @@ export default {
           this.$refs['main'].editItem = {}
         })
         .catch((e) => {
-          // notify('error', 'Error', e, false)
+          notify('error', 'Error', e, false)
+        })
+        .finally(() => {
+          this.$set(this.loading, 0, false)
+        })
+    },
+    getMaterialSelection() {
+      return getLabelList('?selection=name&children=materials')
+        .then((res) => {
+          return Promise.resolve(res.data)
+        })
+        .catch((e) => {
+          notify('error', 'Error', e, false)
+          return Promise.reject()
         })
     },
     getMenuSelection() {
@@ -186,9 +234,13 @@ export default {
       deleteMenu(row.id)
         .then((res) => {
           notify('success', 'Delete Success', res.data, false)
+          this.getDataset()
         })
         .catch((e) => {
-          notify('error', 'Error', e, false)
+          if (e.response) {
+            return notify('error', 'Error', e.response.data, false)
+          }
+          return notify('error', 'Error', e, false)
         })
     },
     createDataset(data) {
@@ -201,7 +253,10 @@ export default {
           this.getDataset()
         })
         .catch((e) => {
-          notify('error', 'Error', e, false)
+          if (e.response) {
+            return notify('error', 'Error', e.response.data, false)
+          }
+          return notify('error', 'Error', e, false)
         })
     },
     editDataset(row) {
@@ -214,7 +269,10 @@ export default {
           this.getDataset()
         })
         .catch((e) => {
-          notify('error', 'Error', e, false)
+          if (e.response) {
+            return notify('error', 'Error', e.response.data, false)
+          }
+          return notify('error', 'Error', e, false)
         })
     },
     onSelectRow(row) {
@@ -224,31 +282,21 @@ export default {
         this.getSubDataset(row.id)
       }
     },
-    getSubColumnOptions() {
-      getMenuItemList('?columns=true')
-        .then((res) => {
-          this.subColumnOptions = res.data
-        })
-        .catch((e) => {
-          notify('error', 'Error', e, false)
-        })
-    },
-    getSubDataset(id) {
-      getMenuItemList('?menu=' + id + '&page=' + this.page[1] + '&page_size=' + this.pageSize[1])
+    getSubDataset(id, value) {
+      this.$set(this.loading, 1, true)
+      let params = '?menu=' + id + '&page=' + this.page[1] + '&page_size=' + this.pageSize[1]
+      if (value) {
+        params += '&search=' + value
+      }
+      getMenuItemList(params)
         .then((res) => {
           this.subData = res.data
         })
         .catch((e) => {
           notify('error', 'Error', e, false)
         })
-    },
-    getSubFormBody() {
-      getMenuItemForm()
-        .then((res) => {
-          this.subFormBody = res.data
-        })
-        .catch((e) => {
-          notify('error', 'Error', e, false)
+        .finally(() => {
+          this.$set(this.loading, 1, false)
         })
     },
     deleteSubDataset(row) {
@@ -258,7 +306,10 @@ export default {
           this.getSubDataset(this.selectRow.id)
         })
         .catch((e) => {
-          notify('error', 'Error', e, false)
+          if (e.response) {
+            return notify('error', 'Error', e.response.data, false)
+          }
+          return notify('error', 'Error', e, false)
         })
     },
     createSubDataset(data) {
@@ -272,7 +323,6 @@ export default {
         })
         .catch((e) => {
           if (e.response) {
-            // Request made and server responded
             return notify('error', 'Error', e.response.data, false)
           }
           return notify('error', 'Error', e, false)
@@ -289,7 +339,6 @@ export default {
         })
         .catch((e) => {
           if (e.response) {
-            // Request made and server responded
             return notify('error', 'Error', e.response.data, false)
           }
           return notify('error', 'Error', e, false)
@@ -302,6 +351,8 @@ export default {
           return this.getDataset()
         case 1:
           return this.getSubDataset(this.selectRow.id)
+        case 2:
+          return this.getInnerDataset(this.selectSubRow.id)
       }
     },
     handlePageChange(val) {
@@ -311,6 +362,8 @@ export default {
           return this.getDataset()
         case 1:
           return this.getSubDataset(this.selectRow.id)
+        case 2:
+          return this.getInnerDataset(this.selectSubRow.id)
       }
     }
   }

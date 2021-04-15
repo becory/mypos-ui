@@ -1,0 +1,35 @@
+{
+  "DASHBOARD": {
+    "NAME": "儀錶板"
+  },
+  "ORDER": {
+    "COUNT": "{0}項，{1}份",
+    "Customer": "顧客點餐",
+    "FoodPanda": "FoodPanda",
+    "NAME": "點餐",
+    "Store": "店家點餐",
+    "UberEats": "UberEats",
+    "checkOut": "結帳",
+    "customer": "顧客",
+    "desk": "桌號",
+    "id": "系統編號",
+    "orderDetails": "詳細資料",
+    "orderFrom": "訂單來源",
+    "orderID": "點餐序號",
+    "status": "狀態",
+    "menuItem": "品項",
+    "transactionItem": "交易品名",
+    "transactionCost": "交易價格",
+    "cook": "烹調方式",
+    "count": "數量",
+    "remark": "備註",
+    "createDateTime": "建立時間",
+    "confirmDateTime": "製作時間",
+    "checkoutDateTime": "結帳時間",
+    "finishDateTime": "完成時間",
+    "pickupDateTime": "取餐時間",
+    "SAVE": "儲存",
+    "CHECKOUT": "結帳",
+    "OPERATION": "操作"
+  }
+}

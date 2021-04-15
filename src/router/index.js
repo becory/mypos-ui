@@ -73,13 +73,13 @@ export const constantRoutes = [
   {
     path: '/',
     component: Layout,
-    redirect: '/dashboard',
+    redirect: '/Dashboard',
     children: [
       {
-        path: 'dashboard',
-        component: () => import('@/views/dashboard/index'),
+        path: 'Dashboard',
+        component: () => import('@/views/Dashboard/index'),
         name: 'Dashboard',
-        meta: { title: 'Dashboard', icon: 'dashboard', affix: true }
+        meta: { title: '儀錶板', icon: 'fas el-icon-fa-tachometer-alt', affix: true, noCache: true }
       }
     ]
   }
@@ -91,6 +91,51 @@ export const constantRoutes = [
  */
 export const asyncRoutes = [
   {
+    path: '/Order',
+    component: Layout,
+    meta: { title: '點餐', icon: 'fas el-icon-fa-shopping-cart' },
+    children: [
+      {
+        path: '',
+        component: () => import('@/views/Order/index'),
+        name: 'Order',
+        meta: { title: '點餐', affix: true, noCache: true }
+      },
+      {
+        path: ':id',
+        component: () => import('@/views/Order/index'),
+        name: 'EditOrder',
+        meta: { title: '修改訂單資料' },
+        hidden: true
+      }
+    ]
+  },
+  {
+    path: '/HistoryOrder',
+    component: Layout,
+    meta: { title: '歷史點餐', icon: 'fas el-icon-fa-history' },
+    children: [
+      {
+        path: '',
+        component: () => import('@/views/HistoryOrder/index'),
+        name: 'OrderList',
+        meta: { title: '歷史點餐紀錄' }
+      },
+      {
+        path: 'Status',
+        component: () => import('@/views/HistoryOrder/Status'),
+        name: 'OrderStatus',
+        meta: { title: '點餐狀態順序設定' }
+      },
+      {
+        path: 'Cook',
+        component: () => import('@/views/HistoryOrder/Cook'),
+        name: 'Cook',
+        meta: { title: '烹調方式設定' }
+      }
+    ]
+  },
+  {
     path: '/Customer',
     component: Layout,
     children: [
@@ -98,7 +143,7 @@ export const asyncRoutes = [
         path: '',
         component: () => import('@/views/Customer/index'),
         name: 'Customer',
-        meta: { title: '顧客', icon: 'user' }
+        meta: { title: '顧客', icon: 'fas el-icon-fa-users' }
       }
     ]
   },
@@ -111,13 +156,13 @@ export const asyncRoutes = [
         path: '',
         component: () => import('@/views/Menu/index'),
         name: 'Menu',
-        meta: { title: '菜單', icon: 'fas el-icon-fa-utensils' }
+        meta: { title: '菜單' }
       },
       {
         path: 'Status',
         component: () => import('@/views/Menu/Status'),
         name: 'MenuStatus',
-        meta: { title: '產品狀態', icon: 'fas el-icon-fa-utensils' }
+        meta: { title: '產品狀態' }
       }
     ]
   },
@@ -137,6 +182,19 @@ export const asyncRoutes = [
         component: () => import('@/views/Stock/Unit'),
         name: 'Unit',
         meta: { title: '單位設定' }
+      }
+    ]
+  },
+  {
+    path: '/Report',
+    component: Layout,
+    meta: { title: '報表', icon: 'fas el-icon-fa-chart-line' },
+    children: [
+      {
+        path: '',
+        component: () => import('@/views/Analysis/index'),
+        name: 'Stock',
+        meta: { title: '報表' }
       }
     ]
   },

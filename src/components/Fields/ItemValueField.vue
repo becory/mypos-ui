@@ -1,6 +1,5 @@
 <template>
   <div>
-    <el-button icon="fas el-icon-fa-plus-circle" type="success" @click="onAdd" />
     <el-table v-if="data.length>0" :data="data" :show-header="false">
       <el-table-column width="40">
         <template slot-scope="scope">
@@ -11,15 +10,15 @@
         <template slot-scope="scope">
           <el-form-item>
             <el-cascader
-              v-model="scope.row.materialValue"
-              :options="selectionOptions.label"
+              v-model="scope.row[options['combineField']]"
+              :options="selectionOptions"
               style="width:50%;"
               filterable
               clearable
               @change="handlerChange(scope.row, $event)"
             />
-            <el-input v-model="scope.row.count" type="number" style="width:50%;">
-              <span slot="append">{{ scope.row.unit }}</span>
+            <el-input v-model="scope.row[options['value']]" type="number" style="width:50%;">
+              <span v-if="scope.row[options['append']]" slot="append">{{ scope.row[options['append']] }}</span>
             </el-input>
           </el-form-item>
         </template>
@@ -30,12 +29,12 @@
         </template>
       </el-table-column>
     </el-table>
+    <el-button icon="fas el-icon-fa-plus-circle" type="success" @click="onAdd" />
+    <el-button icon="fas el-icon-fa-sync-alt" @click="getSelectionOptions" />
   </div>
 </template>
 
 <script>
-import { getLabelList, getMaterialList } from '@/api/api'
-import { notify } from '@/utils/notify'
 
 export default {
   name: 'ListField',
@@ -47,12 +46,20 @@ export default {
     value: {
       type: Array,
       default: () => ([])
+    },
+    dataset: {
+      type: Function,
+      default: () => {}
+    },
+    options: {
+      type: Object,
+      default: () => ({})
     }
   },
   data() {
     return {
       data: [],
-      selectionOptions: { label: [], material: [] }
+      selectionOptions: []
     }
   },
   watch: {
@@ -64,8 +71,8 @@ export default {
       handler(newVal) {
         this.data = newVal.map((item) => {
           // eslint-disable-next-line no-prototype-builtins
-          if (!item.hasOwnProperty('materialValue')) {
-            item['materialValue'] = [item['label'], item['material']]
+          if (!item.hasOwnProperty(this.options['combineField'])) {
+            item[this.options['combineField']] = [item[this.options['master']], item[this.options['child']]]
           }
           return item
         })
@@ -76,54 +83,46 @@ export default {
   mounted() {
     this.data = this.value.map((item) => {
       // eslint-disable-next-line no-prototype-builtins
-      if (!item.hasOwnProperty('materialValue')) {
-        item['materialValue'] = [item['label'], item['material']]
+      if (!item.hasOwnProperty(this.options['combineField'])) {
+        item[this.options['combineField']] = [item[this.options['master']], item[this.options['child']]]
       }
       return item
     })
-    this.getMaterialSelection().then((res) => (this.$set(this.selectionOptions, 'material', res)))
-    this.getLabelSelection().then((res) => (this.$set(this.selectionOptions, 'label', res)))
+    this.getSelectionOptions()
   },
   methods: {
+    getSelectionOptions() {
+      this.dataset().then((res) => (this.selectionOptions = res))
+    },
     onAdd() {
-      this.data.push({ 'label': null, 'material': null, materialValue: null, 'count': null, 'unit': null })
+      const result = {
+        [this.options['master']]: null,
+        [this.options['child']]: null,
+        [this.options['combineField']]: null,
+        [this.options['value']]: null
+
+      }
+      if (this.options['append']) {
+        result[this.options['append']] = null
+      }
+      this.data.push(result)
     },
     onDelete(index) {
       this.data.splice(index, 1)
     },
-    getLabelSelection() {
-      return getLabelList('?selection=name&children=materials')
-        .then((res) => {
-          return Promise.resolve(res.data)
-        })
-        .catch((e) => {
-          notify('error', 'Error', e, false)
-          return Promise.reject()
-        })
-    },
-    getMaterialSelection() {
-      return getMaterialList('?selection=name')
-        .then((res) => {
-          return Promise.resolve(res.data)
-        })
-        .catch((e) => {
-          notify('error', 'Error', e, false)
-          return Promise.reject()
-        })
-    },
     handlerChange(row, val) {
       if (val && val[0] && val[1]) {
-        row.label = val[0]
-        row.material = val[1]
-        const getLabel = this.selectionOptions.label.find((item) => (item.value === val[0]))
+        row[this.options['master']] = val[0]
+        row[this.options['child']] = val[1]
+        const getLabel = this.selectionOptions.find((item) => (item.value === val[0]))
         if (getLabel.children) {
           const getMaterial = getLabel.children.find((item) => (item.value === val[1]))
-          if (getMaterial) {
-            row.unit = getMaterial.unit
+          if (this.options['append']) {
+            row[this.options['append']] = getMaterial[this.options['append']]
           }
         }
       } else {
-        row.unit = null
+        row[this.options['append']] = null
       }
     }
   }

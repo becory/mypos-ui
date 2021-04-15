@@ -29,4 +29,8 @@ $fa-font-path: '~@fortawesome/fontawesome-free/webfonts';
 .fab {
   font-family: 'Font Awesome 5 Brands' !important;
 }
+
+button {
+    touch-action: manipulation;
+}
 </style>

@@ -3,7 +3,7 @@
     <el-form ref="loginForm" :model="loginForm" :rules="loginRules" class="login-form" autocomplete="on" label-position="left">
 
       <div class="title-container">
-        <h3 class="title">Login Form</h3>
+        <h3 class="title">Login POS</h3>
       </div>
 
       <el-form-item prop="username">
@@ -50,16 +50,15 @@
       <div style="position:relative">
         <div class="tips">
           <span>Username : admin</span>
-          <span>Password : any</span>
+          <span>Password : a7654321</span>
         </div>
         <div class="tips">
-          <span style="margin-right:18px;">Username : editor</span>
-          <span>Password : any</span>
+          <span>最小最佳尺寸為ipad mini</span>
         </div>
 
-        <el-button class="thirdparty-button" type="primary" @click="showDialog=true">
-          Or connect with
-        </el-button>
+        <!--        <el-button class="thirdparty-button" type="primary" @click="showDialog=true">-->
+        <!--          Or connect with-->
+        <!--        </el-button>-->
       </div>
     </el-form>
 

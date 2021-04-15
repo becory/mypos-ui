@@ -3,7 +3,7 @@
     <splitpanes ref="mainSplit">
       <pane :size="splitSize[0]">
         <div class="split-container">
-          <h2>分類</h2>
+          <h2>歷史訂單查詢</h2>
           <TableView
             ref="main"
             :data="data"
@@ -11,7 +11,7 @@
             :form="formBody[0]"
             :rules="rules[0]"
             class="table"
-            :table-options="{isCanSelection:true}"
+            :table-options="{isCanSelection:true, disableCreate:true}"
             :page="page[0]"
             :page-size="pageSize[0]"
             :target="0"
@@ -29,54 +29,25 @@
       </pane>
       <pane :size="splitSize[1]">
         <div v-if="selectRow&&Object.keys(selectRow).length>0" class="split-container">
-          <h2>{{ selectRow.name }} 原料</h2>
-          <TableView
-            ref="sub"
-            :data="subData"
-            :column-options="columnOptions[1]"
-            :form="formBody[1]"
-            class="table"
-            :table-options="{isCanSelection:true}"
-            :page="page[1]"
-            :page-size="pageSize[1]"
-            :rules="rules[1]"
-            :target="1"
-            :target-object="{label: selectRow}"
-            :loading="loading[1]"
-            @search="getSubDataset(selectRow.id,$event)"
-            @refresh="getSubDataset(selectRow.id)"
-            @delete="deleteSubDataset"
-            @create="createSubDataset"
-            @edit="editSubDataset"
-            @select-row="onSelectSubRow"
-            @size-change="handlePageSizeChange"
-            @page-change="handlePageChange"
-          />
-        </div>
-      </pane>
-      <pane :size="splitSize[2]">
-        <div v-if="selectSubRow&&Object.keys(selectSubRow).length>0" class="container">
-          <h2>{{ selectSubRow.name }} 庫存紀錄</h2>
-          <TableView
-            ref="inner"
-            :data="innerData"
-            :column-options="columnOptions[2]"
-            :form="formBody[2]"
-            class="table"
-            :page="page[2]"
-            :page-size="pageSize[2]"
-            :target="2"
-            :target-object="{material: selectSubRow}"
-            :rules="rules[2]"
-            :loading="loading[2]"
-            @search="getInnerDataset(selectSubRow.id,$event)"
-            @refresh="getInnerDataset(selectSubRow.id)"
-            @delete="deleteInnerDataset"
-            @create="createInnerDataset"
-            @edit="editInnerDataset"
-            @size-change="handlePageSizeChange"
-            @page-change="handlePageChange"
-          />
+          <el-card v-loading="loading[1]">
+            <template slot="header">
+              <b>{{ selectRow.id }} 訂單內容</b>
+            </template>
+            <el-row>
+              <el-col :md="6">
+                <el-timeline ref="timeline">
+                  <template v-for="(item, idx) in subData['timeline']">
+                    <el-timeline-item v-if="item.timestamp" :key="idx" :timestamp="item.timestamp">
+                      {{ $t('ORDER.'+item.content) }}
+                    </el-timeline-item>
+                  </template>
+                </el-timeline>
+              </el-col>
+              <el-col :md="18">
+                <KeyValueView :data="subData['result']" :format-func="formatValue" />
+              </el-col>
+            </el-row>
+          </el-card>
         </div>
       </pane>
     </splitpanes>
@@ -85,26 +56,36 @@
 
 <script>
 import {
-  deleteLabel,
-  deleteMaterial,
-  getMaterialList,
+  deleteOrder,
+  getOrder,
   getLabelList,
-  postLabel, postMaterial,
-  putLabel, putMaterial, putStock, postStock, deleteStock, getStockForm, getStockList, getUnitList
+  postOrder,
+  postOrderDetail,
+  putOrder,
+  putOrderDetail,
+  putStock,
+  postStock,
+  deleteStock,
+  getStockForm,
+  getStockList,
+  getUnitList,
+  getMenuList,
+  getOrderStatusList, getCustomerList, getOrderList
 } from '@/api/api'
 import { Splitpanes, Pane } from 'splitpanes'
 import TableView from '@/components/TableView'
 import { notify } from '@/utils/notify'
+import KeyValueView from '@/components/TableView/KeyValueView'
 
 export default {
   name: 'Menu',
-  components: { Splitpanes, Pane, TableView },
+  components: { Splitpanes, Pane, TableView, KeyValueView },
   data() {
     return {
-      loading: [false, false, false],
-      page: [1, 1, 1],
-      pageSize: [10, 10, 10],
-      splitSize: [50, 50, 0],
+      loading: [false, false],
+      page: [1, 1],
+      pageSize: [10, 10],
+      splitSize: [50, 50],
       data: [],
       selectRow: {},
       subData: [],
@@ -115,63 +96,114 @@ export default {
   computed: {
     formBody() {
       return [
-        [{ 'label': '分類名稱', 'field': 'name', 'type': 'text', 'inputType': 'el-input' }],
-        [{
-          'label': '分類',
-          'field': 'label',
-          'type': 'text',
-          'inputType': 'el-select',
-          dataset: this.getLabelSelection,
-          options: { filterable: true }
-        },
-        { 'label': '名稱', 'field': 'name', 'type': 'text', 'inputType': 'el-input' },
-        { 'label': '品牌名稱', 'field': 'brand', 'type': 'text', 'inputType': 'el-input' },
-        {
-          'label': '單位',
-          'field': 'unit',
-          'type': 'text',
-          'inputType': 'el-select',
-          dataset: this.getUnitSelection,
-          options: { filterable: true }
-        }],
-        [{
-          'label': '進貨時間',
-          'field': 'stockDate',
-          'type': 'date',
-          'inputType': 'el-date-picker',
-          options: { 'value-format': 'yyyy-MM-dd' }
-        },
-        {
-          'label': '有效期限',
-          'field': 'expiryDate',
-          'type': 'date',
-          'inputType': 'el-date-picker',
-          options: { 'value-format': 'yyyy-MM-dd' }
-        },
-        { 'label': '原料', 'field': 'material', 'type': 'text', 'inputType': 'el-select', dataset: this.getMaterialSelection
-        },
-        {
-          'label': '庫存',
-          'field': 'stock',
-          'type': 'decimal',
-          'inputType': 'el-input-number'
-        }]
+        [
+          {
+            'label': '訂單狀態',
+            'field': 'status',
+            'type': 'text',
+            'inputType': 'el-select',
+            dataset: this.getStatusSelection,
+            options: { filterable: true }
+
+          },
+          {
+            'label': '顧客',
+            'field': 'customer',
+            'type': 'text',
+            'inputType': 'el-select',
+            dataset: this.getCustomerSelection,
+            options: { filterable: true }
+          },
+          {
+            'label': '已結帳',
+            'field': 'checkOut',
+            'type': 'text',
+            'inputType': 'el-switch'
+          },
+          {
+            'label': '序號',
+            'field': 'orderID',
+            'type': 'number',
+            'inputType': 'el-input-number'
+          },
+          {
+            'label': '桌號',
+            'field': 'desk',
+            'type': 'number',
+            'inputType': 'el-input-number'
+          },
+          {
+            'label': '訂單來源',
+            'field': 'orderFrom',
+            'type': 'text',
+            'inputType': 'el-radio-group',
+            dataset: [
+              { value: 'C', label: '顧客點餐' },
+              { value: 'S', label: '來店點餐' },
+              { value: 'F', label: 'FoodPanda' },
+              { value: 'U', label: 'UberEats' }
+            ]
+          },
+          {
+            'label': '點餐內容',
+            'field': 'orderDetails',
+            'type': 'text',
+            'inputType': 'OrderDetailField',
+            dataset: this.getMenuSelection,
+            options: { options: { master: 'menu', child: 'menuItem', combineField: 'menuItemValue', value: 'count' }}
+          }
+        ]
       ]
     },
     columnOptions() {
       return [
-        [{ 'label': 'ID', 'field': 'id' },
-          { 'label': '分類名稱', 'field': 'name' }],
-        [{ 'label': 'ID', 'field': 'id' },
-          { 'label': '分類', 'field': 'label.name' },
-          { 'label': '名稱', 'field': 'name' },
-          { 'label': '品牌名稱', 'field': 'brand' },
-          { 'label': '單位', 'field': 'unit.sign' }],
-        [{ 'label': '進貨時間', 'field': 'stockDate' },
-          { 'label': '有效期限', 'field': 'expiryDate' },
-          { 'label': '原料', 'field': 'material' },
-          { 'label': '庫存', 'field': 'stock' }]
-
+        [
+          {
+            'label': '訂單狀態',
+            'field': 'status.name',
+            'type': 'text',
+            'inputType': 'el-select'
+          },
+          {
+            'label': '顧客',
+            'field': 'customer.name',
+            'type': 'text',
+            'inputType': 'el-select'
+          },
+          {
+            'label': '結帳狀況',
+            'field': 'checkOut',
+            'type': 'text',
+            'inputType': 'el-radio-group'
+          },
+          {
+            'label': '序號',
+            'field': 'orderID',
+            'type': 'number',
+            'inputType': 'number'
+          },
+          {
+            'label': '桌號',
+            'field': 'desk',
+            'type': 'number',
+            'inputType': 'number'
+          },
+          {
+            'label': '產生時間',
+            'field': 'createDateTime',
+            'type': 'date',
+            'inputType': 'datetime',
+            'dateInputFormat': "yyyy-MM-dd'T'HH:mm:ss",
+            'dateOutputFormat': 'yyyy-MM-dd',
+            'formatFn': 'function (value) { return value != null ? value : null}'
+          },
+          {
+            'label': '訂單來源',
+            'field': 'orderFrom',
+            'type': 'text',
+            'inputType': 'text'
+          }
+        ]
       ]
     },
     rules() {
@@ -201,10 +233,9 @@ export default {
       if (value) {
         params += '&search=' + value
       }
-      getLabelList(params)
+      getOrderList(params)
         .then((res) => {
           this.data = res.data
-          this.$refs['main'].createDialog = false
           this.$refs['main'].formBody = {}
           this.$refs['main'].editItem = {}
         })
@@ -213,6 +244,36 @@ export default {
         })
         .finally(() => {
           this.$set(this.loading, 0, false)
+        })
+    },
+    getStatusSelection() {
+      return getOrderStatusList('?selection=name')
+        .then((res) => {
+          return Promise.resolve(res.data)
+        })
+        .catch((e) => {
+          notify('error', 'Error', e, false)
+          return Promise.reject()
+        })
+    },
+    getCustomerSelection() {
+      return getCustomerList('?selection=name')
+        .then((res) => {
+          return Promise.resolve(res.data)
+        })
+        .catch((e) => {
+          notify('error', 'Error', e, false)
+          return Promise.reject()
+        })
+    },
+    getMenuSelection() {
+      return getMenuList('?selection=name&children=menuID')
+        .then((res) => {
+          return Promise.resolve(res.data)
+        })
+        .catch((e) => {
+          notify('error', 'Error', e, false)
+          return Promise.reject()
         })
     },
     getLabelSelection() {
@@ -235,18 +296,18 @@ export default {
           return Promise.reject()
         })
     },
-    getMaterialSelection() {
-      return getMaterialList('?selection=name')
-        .then((res) => {
-          return Promise.resolve(res.data)
-        })
-        .catch((e) => {
-          notify('error', 'Error', e, false)
-          return Promise.reject()
-        })
-    },
+    // getOrderDetailSelection() {
+    //   return getOrderDetailList('?selection=sign')
+    //     .then((res) => {
+    //       return Promise.resolve(res.data)
+    //     })
+    //     .catch((e) => {
+    //       notify('error', 'Error', e, false)
+    //       return Promise.reject()
+    //     })
+    // },
     deleteDataset(row) {
-      deleteLabel(row.id)
+      deleteOrder(row.id)
         .then((res) => {
           notify('success', 'Delete Success', res.data, false)
           this.getDataset()
@@ -259,7 +320,7 @@ export default {
         })
     },
     createDataset(data) {
-      postLabel(data)
+      postOrder(data)
         .then((res) => {
           notify('success', 'Create Success', res.data, false)
           this.$refs['main'].createDialog = false
@@ -275,7 +336,7 @@ export default {
         })
     },
     editDataset(row) {
-      putLabel(row.id, row.data)
+      putOrder(row.id, row.data)
         .then((res) => {
           notify('success', 'Edit Success', res.data, false)
           this.$refs['main'].createDialog = false
@@ -298,7 +359,7 @@ export default {
       }
     },
     // getSubColumnOptions() {
-    //   getMaterialList('?columns=true')
+    //   getOrderDetailList('?columns=true')
     //     .then((res) => {
     //       this.subColumnOptions = res.data
     //     })
@@ -306,15 +367,18 @@ export default {
     //       notify('error', 'Error', e, false)
     //     })
     // },
-    getSubDataset(id, value) {
+    getSubDataset(id) {
       this.$set(this.loading, 1, true)
-      let params = '?label=' + id + '&page=' + this.page[1] + '&page_size=' + this.pageSize[1]
-      if (value) {
-        params += '&search=' + value
-      }
-      getMaterialList(params)
+      getOrder(id)
         .then((res) => {
-          this.subData = res.data
+          const data = res.data
+          const tableResult = {}
+          Object.keys(data).forEach((item) => {
+            if (['timeline', 'status'].indexOf(item) < 0) {
+              tableResult[item] = data[item]
+            }
+          })
+          this.subData = { status: data['status'], timeline: data['timeline'], result: tableResult }
         })
         .catch((e) => {
           notify('error', 'Error', e, false)
@@ -324,7 +388,7 @@ export default {
         })
     },
     // getSubFormBody() {
-    //   getMaterialForm()
+    //   getOrderDetailForm()
     //     .then((res) => {
     //       this.subFormBody = res.data
     //     })
@@ -332,21 +396,21 @@ export default {
     //       notify('error', 'Error', e, false)
     //     })
     // },
-    deleteSubDataset(row) {
-      deleteMaterial(row.id)
-        .then((res) => {
-          notify('success', 'Delete Success', res.data, false)
-          this.getSubDataset(this.selectRow.id)
-        })
-        .catch((e) => {
-          if (e.response) {
-            return notify('error', 'Error', e.response.data, false)
-          }
-          return notify('error', 'Error', e, false)
-        })
-    },
+    // deleteSubDataset(row) {
+    //   deleteOrderDetail(row.id)
+    //     .then((res) => {
+    //       notify('success', 'Delete Success', res.data, false)
+    //       this.getSubDataset(this.selectRow.id)
+    //     })
+    //     .catch((e) => {
+    //       if (e.response) {
+    //         return notify('error', 'Error', e.response.data, false)
+    //       }
+    //       return notify('error', 'Error', e, false)
+    //     })
+    // },
     createSubDataset(data) {
-      postMaterial(data)
+      postOrderDetail(data)
         .then((res) => {
           notify('success', 'Create Success', res.data, false)
           this.$refs['sub'].createDialog = false
@@ -362,7 +426,7 @@ export default {
         })
     },
     editSubDataset(row) {
-      putMaterial(row.id, row.data)
+      putOrderDetail(row.id, row.data)
         .then((res) => {
           notify('success', 'Edit Success', res.data, false)
           this.$refs['sub'].createDialog = false
@@ -393,21 +457,13 @@ export default {
     //       notify('error', 'Error', e, false)
     //     })
     // },
-    getInnerDataset(id, value) {
-      this.$set(this.loading, 2, true)
-      let params = '?material=' + id + '&page=' + this.page[2] + '&page_size=' + this.pageSize[2]
-      if (value) {
-        params += '&search=' + value
-      }
-      getStockList(params)
+    getInnerDataset(id) {
+      getStockList('?material=' + id + '&page=' + this.page[2] + '&page_size=' + this.pageSize[2])
         .then((res) => {
           this.innerData = res.data
         })
         .catch((e) => {
           notify('error', 'Error', e, false)
-        })
-        .finally(() => {
-          this.$set(this.loading, 2, false)
         })
     },
     getInnerFormBody() {
@@ -478,6 +534,14 @@ export default {
           return this.getSubDataset(this.selectRow.id)
         case 2:
           return this.getInnerDataset(this.selectSubRow.id)
+      }
+    },
+    formatValue(key, value) {
+      switch (key) {
+        case 'menuItem':
+          return value['name'] + '(現價：' + value['price'] + '$)'
+        default:
+          return value['name']
       }
     }
   }

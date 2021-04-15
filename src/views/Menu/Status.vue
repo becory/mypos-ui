@@ -8,6 +8,11 @@
       :form="formBody"
       class="table"
       :table-options="{isCanSelection:true}"
+      :rules="rules"
+      :page="page[0]"
+      :page-size="pageSize[0]"
+      :loading="loading[0]"
+      @search="getDataset"
       @refresh="getDataset"
       @delete="deleteDataset"
       @create="createDataset"
@@ -34,6 +39,9 @@ export default {
   components: { TableView },
   data() {
     return {
+      loading: [false],
+      page: [1],
+      pageSize: [10],
       data: [],
       selectRow: {}
     }
@@ -80,6 +88,14 @@ export default {
           options: { multiple: true }
         }
       ]
+    },
+    rules() {
+      return {
+        name: [{ required: true, message: '必填欄位', trigger: 'blur' }],
+        itemType: [{ required: true, message: '必填欄位', trigger: 'blur' }],
+        startDate: [{ required: true, message: '必填欄位', trigger: 'blur' }],
+        endDate: [{ required: true, message: '必填欄位', trigger: 'blur' }]
+      }
     }
   },
   mounted() {
@@ -107,13 +123,21 @@ export default {
           return Promise.reject()
         })
     },
-    getDataset() {
-      getMenuStatusList('')
+    getDataset(value) {
+      this.$set(this.loading, 0, true)
+      let params = '?page=' + this.page[0] + '&page_size=' + this.pageSize[0]
+      if (value) {
+        params += '&search=' + value
+      }
+      getMenuStatusList(params)
         .then((res) => {
           this.data = res.data
         })
         .catch((e) => {
           notify('error', 'Error', e, false)
+        })
+        .finally(() => {
+          this.$set(this.loading, 0, false)
         })
     },
     getFormBody() {
@@ -126,24 +150,13 @@ export default {
         })
     },
     deleteDataset(row) {
-      this.$confirm('刪除顧客後，所有訂單將歸類為一般顧客，並且無法更改訂單資訊。', '確定刪除？', {
-        confirmButtonText: '確定',
-        cancelButtonText: '取消',
-        type: 'warning'
-      }).then(() => {
-        deleteMenuStatus(row.id)
-          .then((res) => {
-            notify('success', 'Delete Success', res.data, false)
-          })
-          .catch((e) => {
-            notify('error', 'Error', e, false)
-          })
-      }).catch(() => {
-        this.$message({
-          type: 'info',
-          message: '已取消删除'
+      deleteMenuStatus(row.id)
+        .then((res) => {
+          notify('success', 'Delete Success', res.data, false)
         })
-      })
+        .catch((e) => {
+          notify('error', 'Error', e, false)
+        })
     },
     createDataset(data) {
       postMenuStatus(data)
@@ -189,15 +202,5 @@ export default {
     position: relative;
     height: 85vh;
   }
-}
-
-.left-container {
-  background-color: #F38181;
-  height: 100%;
-}
-
-.right-container {
-  background-color: #FCE38A;
-  height: 100%;
 }
 </style>

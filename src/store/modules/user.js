@@ -1,9 +1,11 @@
-import { login, logout, getInfo } from '@/api/user'
-import { getToken, setToken, removeToken } from '@/utils/auth'
+import { logout } from '@/api/user'
+import { getToken, setToken, removeToken, getRefreshToken, setRefreshToken } from '@/utils/auth'
 import router, { resetRouter } from '@/router'
+import { loginUser, verifyToken } from '@/api/api'
 
 const state = {
   token: getToken(),
+  refresh_token: getRefreshToken(),
   name: '',
   avatar: '',
   introduction: '',
@@ -13,6 +15,9 @@ const state = {
 const mutations = {
   SET_TOKEN: (state, token) => {
     state.token = token
+  },
+  SET_REFRESH_TOKEN: (state, token) => {
+    state.refresh_token = token
   },
   SET_INTRODUCTION: (state, introduction) => {
     state.introduction = introduction
@@ -33,42 +38,38 @@ const actions = {
   login({ commit }, userInfo) {
     const { username, password } = userInfo
     return new Promise((resolve, reject) => {
-      login({ username: username.trim(), password: password }).then(response => {
-        const { data } = response
-        commit('SET_TOKEN', data.token)
-        setToken(data.token)
-        resolve()
-      }).catch(error => {
-        reject(error)
-      })
+      loginUser({ username: username.trim(), password: password })
+        .then(response => {
+          commit('SET_TOKEN', response.access)
+          commit('SET_REFRESH_TOKEN', response.refresh)
+          setToken(response.access)
+          setRefreshToken(response.refresh)
+          resolve()
+        }).catch(error => {
+          reject(error)
+        })
     })
   },
 
   // get user info
   getInfo({ commit, state }) {
     return new Promise((resolve, reject) => {
-      getInfo(state.token).then(response => {
-        const { data } = response
-
-        if (!data) {
-          reject('Verification failed, please Login again.')
-        }
-
-        const { roles, name, avatar, introduction } = data
-
-        // roles must be a non-empty array
-        if (!roles || roles.length <= 0) {
-          reject('getInfo: roles must be a non-null array!')
-        }
-
-        commit('SET_ROLES', roles)
-        commit('SET_NAME', name)
-        commit('SET_AVATAR', avatar)
-        commit('SET_INTRODUCTION', introduction)
-        resolve(data)
-      }).catch(error => {
-        reject(error)
-      })
+      verifyToken({ token: state.token })
+        .then(response => {
+          if (!response) {
+            reject('Verification failed, please Login again.')
+          }
+          const { roles, first_name } = response
+          // roles must be a non-empty array
+          if (!roles || roles.length <= 0) {
+            reject('getInfo: roles must be a non-null array!')
+          }
+          commit('SET_ROLES', roles)
+          commit('SET_NAME', first_name)
+          resolve(response)
+        }).catch(error => {
+          reject(error)
+        })
     })
   },
 
@@ -104,10 +105,11 @@ const actions = {
 
   // dynamically modify permissions
   async changeRoles({ commit, dispatch }, role) {
-    const token = role + '-token'
-
-    commit('SET_TOKEN', token)
-    setToken(token)
+    // console.log('role', role)
+    // const token = role + '-token'
+    //
+    // commit('SET_TOKEN', token)
+    // setToken(token)
 
     const { roles } = await dispatch('getInfo')
 
